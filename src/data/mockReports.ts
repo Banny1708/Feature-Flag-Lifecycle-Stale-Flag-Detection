@@ -1,0 +1,66 @@
+import { Report } from '@/types';
+
+export const mockReports: Report[] = [
+  {
+    id: 'rep-01',
+    title: 'Q3 Enterprise Stale Flag Elimination Audit',
+    type: 'stale-summary',
+    generatedAt: '2026-09-21T08:00:00Z',
+    summary: {
+      totalScannedFlags: 98,
+      staleFlagsIdentified: 24,
+      removalOperationsCompleted: 14,
+      techDebtReductionHours: 72,
+      codeLinesEliminated: 1480,
+    },
+    downloadFormat: 'json',
+    status: 'ready',
+  },
+  {
+    id: 'rep-02',
+    title: 'Checkout & Payments Flag Lifecycle Health Audit',
+    type: 'lifecycle-audit',
+    repositoryId: 'repo-01',
+    repositoryName: 'core-checkout-service',
+    generatedAt: '2026-09-20T14:30:00Z',
+    summary: {
+      totalScannedFlags: 24,
+      staleFlagsIdentified: 6,
+      removalOperationsCompleted: 4,
+      techDebtReductionHours: 28,
+      codeLinesEliminated: 610,
+    },
+    downloadFormat: 'csv',
+    status: 'ready',
+  },
+  {
+    id: 'rep-03',
+    title: 'AST Automated Code Cleanup Impact Report',
+    type: 'cleanup-impact',
+    generatedAt: '2026-09-18T10:15:00Z',
+    summary: {
+      totalScannedFlags: 120,
+      staleFlagsIdentified: 32,
+      removalOperationsCompleted: 22,
+      techDebtReductionHours: 110,
+      codeLinesEliminated: 3240,
+    },
+    downloadFormat: 'pdf',
+    status: 'ready',
+  },
+  {
+    id: 'rep-04',
+    title: 'SOC2 & ISO 27001 Access Flag Compliance Review',
+    type: 'compliance',
+    generatedAt: '2026-09-15T19:00:00Z',
+    summary: {
+      totalScannedFlags: 45,
+      staleFlagsIdentified: 5,
+      removalOperationsCompleted: 3,
+      techDebtReductionHours: 18,
+      codeLinesEliminated: 210,
+    },
+    downloadFormat: 'json',
+    status: 'ready',
+  },
+];

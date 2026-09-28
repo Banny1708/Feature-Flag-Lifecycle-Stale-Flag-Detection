@@ -1,0 +1,67 @@
+import { EvidenceRecord } from '@/types';
+
+export const mockEvidenceRecords: EvidenceRecord[] = [
+  {
+    id: 'evi-01',
+    flagId: 'flag-04',
+    flagName: 'DEPRECATED_STRIPE_WEBHOOK',
+    repositoryName: 'core-checkout-service',
+    evidenceType: 'zero-traffic',
+    confidenceScore: 0.99,
+    detectedAt: '2026-09-21T02:00:00Z',
+    source: 'DataDog Metrics Ingestion',
+    summary: '0 evaluations observed in production for 180 consecutive days.',
+    payload: {
+      zeroDaysObserved: 180,
+      lastEvaluationTime: '2026-03-25T11:00:00Z',
+      clusterNodesChecked: 32,
+    },
+  },
+  {
+    id: 'evi-02',
+    flagId: 'flag-02',
+    flagName: 'LEGACY_OAUTH_V1_FALLBACK',
+    repositoryName: 'auth-identity-engine',
+    evidenceType: 'time-decay',
+    confidenceScore: 0.95,
+    detectedAt: '2026-09-20T04:15:00Z',
+    source: 'Flag Lifecycle Decay Engine',
+    summary: 'Flag age is 1,280 days old; expected maximum operational lifespan was 90 days.',
+    payload: {
+      ageInDays: 1280,
+      expectedLifespanDays: 90,
+      ownerActivityStatus: 'owner-reassigned',
+    },
+  },
+  {
+    id: 'evi-03',
+    flagId: 'flag-07',
+    flagName: 'OLD_CHECKOUT_UPSELL_CARD',
+    repositoryName: 'core-checkout-service',
+    evidenceType: 'ast-unreachable',
+    confidenceScore: 0.94,
+    detectedAt: '2026-09-21T14:32:00Z',
+    source: 'FlagShark AST Scanner',
+    summary: '100% rollout configuration renders the false-branch expression unreachable.',
+    payload: {
+      rolloutPercentage: 100,
+      deadAstNodes: 4,
+      file: 'src/components/CheckoutSummary.tsx',
+    },
+  },
+  {
+    id: 'evi-04',
+    flagId: 'flag-03',
+    flagName: 'ROLLOUT_NEW_SEARCH_ALGO',
+    repositoryName: 'customer-portal-web',
+    evidenceType: 'code-commit-staleness',
+    confidenceScore: 0.82,
+    detectedAt: '2026-09-18T18:40:00Z',
+    source: 'Git History Analyzer',
+    summary: 'No code changes made to flag guards or variant handlers in 14 git commits over 60 days.',
+    payload: {
+      daysSinceLastGuardEdit: 62,
+      commitsExamined: 14,
+    },
+  },
+];
