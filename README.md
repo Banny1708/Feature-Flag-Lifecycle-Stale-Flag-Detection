@@ -58,6 +58,35 @@ npm run build
 npm run preview
 ```
 
+## Docker Deployment (FFSD Frontend)
+
+The frontend is containerized using a multi-stage Docker build served via Nginx with SPA routing support.
+
+### Option 1: Docker Compose (Recommended)
+
+```bash
+# Build and run container
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop container
+docker compose down
+```
+
+### Option 2: Docker CLI
+
+```bash
+# Build the image
+docker build -t ffsd-frontend:latest .
+
+# Run the container
+docker run -d --name ffsd-frontend -p 3000:80 ffsd-frontend:latest
+```
+
+The application will be available at: **`http://localhost:3000`**
+
 ## License
 
 MIT

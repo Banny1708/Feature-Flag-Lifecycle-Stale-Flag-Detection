@@ -1,0 +1,13 @@
+services:
+  ffsd-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ffsd-frontend:latest
+    container_name: ffsd-frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    labels:
+      - "app=FFSD frontend"
+      - "description=Feature Flag Lifecycle and Stale Flag Detection Frontend"
