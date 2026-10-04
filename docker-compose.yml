@@ -1,4 +1,24 @@
 services:
+  ffsd-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ffsd-backend:latest
+    container_name: ffsd-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./feature_flags.db
+      - FRONTEND_ORIGIN=http://localhost:3000
+      - WORKSPACE_DIR=/srv/workspaces
+    volumes:
+      - ffsd-data:/srv/backend
+      - ffsd-workspaces:/srv/workspaces
+    restart: unless-stopped
+    labels:
+      - "app=FFSD backend"
+      - "description=Feature Flag Lifecycle and Stale Flag Detection Backend (FastAPI + SQLite)"
+
   ffsd-frontend:
     build:
       context: .
@@ -11,3 +31,9 @@ services:
     labels:
       - "app=FFSD frontend"
       - "description=Feature Flag Lifecycle and Stale Flag Detection Frontend"
+    depends_on:
+      - ffsd-backend
+
+volumes:
+  ffsd-data:
+  ffsd-workspaces:

@@ -35,3 +35,12 @@ vite.config.js
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Backend (Python / SQLite)
+__pycache__/
+*.py[cod]
+.venv/
+backend/*.db
+backend/*.db-journal
+backend/workspaces/
+.pytest_cache/

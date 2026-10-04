@@ -39,14 +39,26 @@ cd Feature-Flag-Lifecycle-Stale-Flag-Detection
 npm install
 ```
 
-### Running Locally
+### Running Locally (frontend + backend)
 
 ```bash
-# Start the Vite development server
+# Terminal 1: backend (FastAPI + SQLite, seeds demo data on first start)
+cd backend
+pip install -r requirements.txt
+python -m alembic upgrade head
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+# API docs: http://127.0.0.1:8000/docs
+
+# Terminal 2: frontend (Vite, talks to backend via VITE_API_URL)
 npm run dev
 ```
 
 Visit `http://localhost:5173` to explore the application.
+Copy `.env.example` to `.env` to override `VITE_API_URL` (defaults to `http://127.0.0.1:8000`).
+When the backend is unreachable, the UI automatically falls back to bundled mock data.
+
+See `backend/README.md` for the full lifecycle workflow (register repo → scan →
+evidence/risk → Piranha removal → tests → verification) and tool-integration notes.
 
 ### Building for Production
 
