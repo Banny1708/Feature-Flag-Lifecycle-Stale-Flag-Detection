@@ -8,11 +8,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./feature_flags.db
+      - DATABASE_URL=sqlite:///./data/feature_flags.db
       - FRONTEND_ORIGIN=http://localhost:3000
       - WORKSPACE_DIR=/srv/workspaces
     volumes:
-      - ffsd-data:/srv/backend
+      - ffsd-data:/srv/backend/data
       - ffsd-workspaces:/srv/workspaces
     restart: unless-stopped
     labels:

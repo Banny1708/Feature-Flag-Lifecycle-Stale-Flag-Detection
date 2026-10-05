@@ -9,7 +9,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./
 
-ENV DATABASE_URL=sqlite:///./feature_flags.db \
+RUN mkdir -p /srv/backend/data /srv/workspaces
+
+ENV DATABASE_URL=sqlite:///./data/feature_flags.db \
     BACKEND_HOST=0.0.0.0 \
     BACKEND_PORT=8000 \
     FRONTEND_ORIGIN=http://localhost:5173 \
