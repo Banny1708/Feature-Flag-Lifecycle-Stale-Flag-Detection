@@ -1,0 +1,9 @@
+{
+ "tool": "polyglot-piranha",
+ "version": "0.4.9",
+ "language": "python",
+ "flag": "FEATURE_NEW_UI",
+ "treated": "True",
+ "exit": "0-dry_run_False",
+ "note": "recorded from real execution, see Phase 3 report"
+}

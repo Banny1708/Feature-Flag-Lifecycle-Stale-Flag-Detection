@@ -1,26 +1,24 @@
 import { Report, EvidenceRecord } from '@/types';
-import { mockReports } from '@/data/mockReports';
-import { mockEvidenceRecords } from '@/data/mockEvidence';
-import { API_BASE_URL, backendFirst, simulateFetch } from './apiClient';
-import { apiGet } from './apiClient';
+import { API_BASE_URL, apiGet, apiPost } from './apiClient';
 
 export const reportService = {
   async getReports(): Promise<Report[]> {
-    return backendFirst(
-      () => apiGet<Report[]>('/api/reports'),
-      () => simulateFetch(mockReports)
-    );
+    return apiGet<Report[]>('/api/reports');
   },
 
   async getEvidenceRecords(flagId?: string): Promise<EvidenceRecord[]> {
     if (flagId) {
-      return backendFirst(
-        () => apiGet<EvidenceRecord[]>(`/api/flags/${encodeURIComponent(flagId)}/evidence`),
-        async () =>
-          (await simulateFetch(mockEvidenceRecords)).filter((e) => e.flagId === flagId)
-      );
+      return apiGet<EvidenceRecord[]>(`/api/flags/${encodeURIComponent(flagId)}/evidence`);
     }
-    return simulateFetch(mockEvidenceRecords);
+    return apiGet<EvidenceRecord[]>('/api/evidence');
+  },
+
+  async generateReport(title: string, type = 'stale-summary', repositoryId?: string): Promise<Report> {
+    return apiPost<Report>('/api/reports', {
+      title,
+      type,
+      repository_id: repositoryId ?? null,
+    });
   },
 
   /** Direct download URL for a persisted backend report (json/csv). */

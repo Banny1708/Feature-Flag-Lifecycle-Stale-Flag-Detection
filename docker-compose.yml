@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ffsd-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-ffsd}
+      - POSTGRES_USER=${POSTGRES_USER:-ffsd}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ffsd-dev-only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-ffsd} -d $${POSTGRES_DB:-ffsd}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    labels:
+      - "app=FFSD postgres"
+      - "description=Primary persistent database (PostgreSQL 16)"
+
   ffsd-backend:
     build:
       context: ./backend
@@ -8,16 +28,18 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/feature_flags.db
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-ffsd}:${POSTGRES_PASSWORD:-ffsd-dev-only}@postgres:5432/${POSTGRES_DB:-ffsd}
       - FRONTEND_ORIGIN=http://localhost:3000
       - WORKSPACE_DIR=/srv/workspaces
     volumes:
-      - ffsd-data:/srv/backend/data
       - ffsd-workspaces:/srv/workspaces
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     labels:
       - "app=FFSD backend"
-      - "description=Feature Flag Lifecycle and Stale Flag Detection Backend (FastAPI + SQLite)"
+      - "description=Feature Flag Lifecycle and Stale Flag Detection Backend (FastAPI + PostgreSQL)"
 
   ffsd-frontend:
     build:
@@ -35,5 +57,5 @@ services:
       - ffsd-backend
 
 volumes:
-  ffsd-data:
+  pgdata:
   ffsd-workspaces:

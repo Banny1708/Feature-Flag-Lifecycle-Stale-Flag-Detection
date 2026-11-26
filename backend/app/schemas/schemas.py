@@ -179,6 +179,7 @@ class RiskAssessmentOut(CamelModel):
     flag_name: str = ""
     overall_risk: str = "medium"
     risk_level: str = "MEDIUM"
+    recommendation: str = "REVIEW_REQUIRED"
     score: int = 0
     blast_radius_score: int = 0
     factors: list[RiskFactorOut] = []
@@ -217,6 +218,8 @@ class RemovalOut(CamelModel):
     safety_branch: str = ""
     base_commit: str = ""
     verification_status: str = "UNVERIFIED"
+    operation_type: str = "REMOVE"
+    cleanup_status: str | None = None
 
 
 class DiffCheckOut(CamelModel):

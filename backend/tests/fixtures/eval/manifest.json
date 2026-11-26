@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "note": "Phase 4 evaluation corpus. Ground truth verified by real runs (see test_evaluation.py).",
+  "detection_cases": [
+    {
+      "id": "sdk_py",
+      "repo": "repos/sdk_py",
+      "commit_date": "2025-01-01T12:00:00",
+      "expected_keys": [
+        "LD_PY_CHECKOUT"
+      ],
+      "expected_stale": [
+        "LD_PY_CHECKOUT"
+      ],
+      "must_not_detect": [
+        "LD_PY_DETAIL",
+        "prefix_",
+        "LD_ENV_KEY",
+        "launchdarkly",
+        "ldclient"
+      ],
+      "why": "LaunchDarkly Python SDK: literal variation() key detected; variation_detail/computed/env-derived excluded"
+    },
+    {
+      "id": "bool_py",
+      "repo": "repos/bool_py",
+      "commit_date": "2026-10-24T12:00:00",
+      "expected_keys": [],
+      "expected_stale": [],
+      "must_not_detect": [
+        "FEATURE_BOOL_EVAL"
+      ],
+      "why": "Bare boolean flags are invisible to import-gated AST detection: honest zero-flag clean scan"
+    },
+    {
+      "id": "fresh_sdk",
+      "repo": "repos/fresh_sdk",
+      "commit_date": "now",
+      "expected_keys": [
+        "LD_PY_CHECKOUT"
+      ],
+      "expected_stale": [],
+      "must_not_detect": [
+        "LD_PY_DETAIL",
+        "prefix_",
+        "LD_ENV_KEY"
+      ],
+      "why": "Fresh SDK flag: counted but not stale (no stale signals yet)"
+    },
+    {
+      "id": "unsupported_go",
+      "repo": "repos/unsupported_go",
+      "commit_date": "2026-10-24T12:00:00",
+      "expected_keys": [],
+      "expected_stale": [],
+      "must_not_detect": [
+        "GoEvalFlag"
+      ],
+      "why": "Go has no verified provider config: nothing detected, Piranha removal must be UNSUPPORTED"
+    },
+    {
+      "id": "malformed_py",
+      "repo": "repos/malformed_py",
+      "commit_date": "2026-10-24T12:00:00",
+      "expected_keys": [],
+      "expected_stale": [],
+      "must_not_detect": [
+        "prefix_"
+      ],
+      "why": "Syntax-broken file must not crash the scan; computed-only keys elsewhere must not be detected",
+      "allow_extra_stale": false
+    },
+    {
+      "id": "dynamic_only",
+      "repo": "repos/dynamic_only",
+      "commit_date": "2026-10-24T12:00:00",
+      "expected_keys": [],
+      "expected_stale": [],
+      "must_not_detect": [
+        "prefix_",
+        "SOME_ENV_FLAG"
+      ],
+      "why": "Computed and env-derived keys are not literal flags: nothing detected"
+    }
+  ],
+  "cleanup_cases": [
+    {
+      "id": "py_true",
+      "fixture_case": "py_true",
+      "language": "python",
+      "flag": "FEATURE_NEW_UI",
+      "treated": "True",
+      "expect_status": "APPLIED"
+    },
+    {
+      "id": "py_false",
+      "fixture_case": "py_false",
+      "language": "python",
+      "flag": "FEATURE_OLD_SEARCH",
+      "treated": "False",
+      "expect_status": "APPLIED"
+    },
+    {
+      "id": "ts_true",
+      "fixture_case": "ts_true",
+      "language": "typescript",
+      "flag": "FEATURE_NEW_UI",
+      "treated": "true",
+      "expect_status": "APPLIED"
+    },
+    {
+      "id": "sdk_detail_no_changes",
+      "language": "python",
+      "flag": "LD_PY_DETAIL",
+      "treated": "True",
+      "expect_status": "NO_CHANGES",
+      "repo": "repos/sdk_py"
+    },
+    {
+      "id": "go_unsupported",
+      "language": "go",
+      "flag": "GoEvalFlag",
+      "treated": "true",
+      "expect_status": "UNSUPPORTED",
+      "repo": "repos/unsupported_go"
+    }
+  ],
+  "metrics": {
+    "detection_precision": "TP / (TP + FP) over (repo, key) detection pairs vs expected_keys",
+    "detection_recall": "TP / (TP + FN) over (repo, key) detection pairs vs expected_keys",
+    "detection_f1": "harmonic mean of precision and recall",
+    "stale_accuracy": "fraction of expected stale verdicts matching (stale only asserted where deterministic)",
+    "cleanup_success_rate": "APPLIED / total cleanup runs",
+    "no_changes_rate": "NO_CHANGES / total cleanup runs",
+    "unsupported_rate": "UNSUPPORTED / total cleanup runs",
+    "rollback_success_rate": "byte-identical restores / rollback attempts",
+    "false_cleanup_rate": "runs modifying files outside the expected set / total runs (must be 0)"
+  }
+}

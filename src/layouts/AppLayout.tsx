@@ -2,21 +2,55 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/navigation/Sidebar';
 import { Topbar } from '@/components/navigation/Topbar';
-import { CheckCircle2, X } from 'lucide-react';
+import { repositoryService } from '@/services/repositoryService';
+import { CheckCircle2, X, AlertTriangle } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanNotification, setScanNotification] = useState<string | null>(null);
+  const [scanFailed, setScanFailed] = useState(false);
 
-  const handleTriggerScan = () => {
+  const handleTriggerScan = async () => {
     setIsScanning(true);
-    setTimeout(() => {
+    setScanNotification(null);
+    setScanFailed(false);
+    try {
+      const repos = await repositoryService.getRepositories();
+      if (repos.length === 0) {
+        setScanNotification('No repositories registered — connect one before scanning.');
+        setScanFailed(true);
+        return;
+      }
+      let evaluated = 0;
+      let stale = 0;
+      const failures: string[] = [];
+      for (const repo of repos) {
+        try {
+          const scan = await repositoryService.triggerScan(repo.id);
+          evaluated += scan.totalFlagsDetected;
+          stale += scan.staleFlagsDetected;
+        } catch (err) {
+          failures.push(`${repo.name}: ${err instanceof Error ? err.message : 'failed'}`);
+        }
+      }
+      if (failures.length === repos.length) {
+        setScanNotification(`Global scan failed: ${failures[0]}`);
+        setScanFailed(true);
+      } else {
+        setScanNotification(
+          `Scan complete: ${evaluated} flags evaluated across ${repos.length} repositories. ${stale} stale flags confirmed.` +
+            (failures.length > 0 ? ` ${failures.length} repo(s) failed.` : '')
+        );
+      }
+    } catch (err) {
+      setScanNotification(`Global scan failed: ${err instanceof Error ? err.message : 'backend unreachable'}`);
+      setScanFailed(true);
+    } finally {
       setIsScanning(false);
-      setScanNotification('FlagShark AST Scan complete: 98 flags evaluated across 5 repositories. 24 stale flags confirmed.');
       setTimeout(() => {
         setScanNotification(null);
-      }, 6000);
-    }, 2000);
+      }, 8000);
+    }
   };
 
   return (
@@ -30,14 +64,18 @@ export const AppLayout: React.FC = () => {
 
         {/* Global AST Scan Banner Notification */}
         {scanNotification && (
-          <div className="bg-emerald-950/80 border-b border-emerald-800/80 px-6 py-2.5 flex items-center justify-between text-xs text-emerald-200 animate-in fade-in duration-200">
+          <div className={`${scanFailed ? 'bg-rose-950/80 border-rose-800/80 text-rose-200' : 'bg-emerald-950/80 border-emerald-800/80 text-emerald-200'} border-b px-6 py-2.5 flex items-center justify-between text-xs animate-in fade-in duration-200`}>
             <div className="flex items-center gap-2 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              {scanFailed ? (
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              )}
               <span>{scanNotification}</span>
             </div>
             <button
               onClick={() => setScanNotification(null)}
-              className="text-emerald-400 hover:text-emerald-200 p-0.5"
+              className={`${scanFailed ? 'text-rose-400 hover:text-rose-200' : 'text-emerald-400 hover:text-emerald-200'} p-0.5`}
             >
               <X className="w-3.5 h-3.5" />
             </button>

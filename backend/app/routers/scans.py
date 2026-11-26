@@ -10,7 +10,7 @@ from ..config import get_settings
 from ..database import get_db
 from ..models.models import CodePath, CodeReference, EvidenceRecord, FeatureFlag, Repository, Scan, ScanFinding
 from ..schemas.schemas import ScanCreate, ScanOut
-from ..services import evidence_service, flagshark_service, git_service
+from ..services import evidence_service, flagshark_service, git_service, provider_service
 from ..services.codepath_service import analyze_flag_codepaths
 from ..utils.helpers import new_id, utcnow_iso
 from .mappers import scan_out
@@ -42,7 +42,7 @@ def create_scan(body: ScanCreate, db: Session = Depends(get_db)):
     if not repo:
         raise HTTPException(status_code=404, detail="repository not found")
     if not repo.local_path:
-        raise HTTPException(status_code=400, detail="repository has no local_path; register it with a local checkout path first")
+        raise HTTPException(status_code=400, detail="repository has no local checkout; connect it via GitHub URL or local path first")
     path = Path(repo.local_path)
     if not path.exists():
         raise HTTPException(status_code=400, detail=f"repository path missing: {path}")
@@ -60,21 +60,35 @@ def create_scan(body: ScanCreate, db: Session = Depends(get_db)):
 
     det = flagshark_service.run_detection(path)
     now = utcnow_iso()
+    # Provider supplement (LaunchDarkly SDK-call inventory, source-labelled
+    # ProviderAST, never FlagShark). Best-effort: never fails the scan.
+    prov_findings: list[dict] = []
+    prov_stats: dict = {}
+    try:
+        prov_findings, prov_stats = provider_service.detect_provider_references(path)
+    except Exception as exc:  # defensive: provider layer must not break scans
+        prov_stats = {"errors": [f"provider layer failed: {type(exc).__name__}"]}
+    all_findings = list(det["findings"]) + prov_findings
+    if det["tool_available"] and not det["error"] and not det["findings"] and not prov_findings:
+        # Verified FlagShark run with zero stale flags: a clean, successful scan.
+        scan_status = "success"
+    else:
+        scan_status = "success" if all_findings else ("failed" if det["error"] and "not installed" in det["error"] and not all_findings else "partial")
     scan = Scan(id=new_id("scan"), repository_id=repo.id, repository_name=repo.name,
-                timestamp=now, status="success" if det["findings"] else ("failed" if det["error"] and "not installed" in det["error"] and not det["findings"] else "partial"),
-                total_flags_detected=len({f["flag_key"] for f in det["findings"]}),
-                stale_flags_detected=sum(1 for f in det["findings"] if f.get("is_stale")),
+                timestamp=now, status=scan_status,
+                total_flags_detected=len({f["flag_key"] for f in all_findings}),
+                stale_flags_detected=sum(1 for f in all_findings if f.get("is_stale")),
                 scanner_engine=det["engine"], scan_duration_ms=det["duration_ms"],
                 commit_hash=(commit or "")[:64], branch=branch,
                 raw_output=(det["raw"] or "")[:20000], error_message=(det["error"] or "")[:4000])
     # FlagShark-missing with zero local refs => explicit failure, no fake flags
-    if not det["tool_available"] and not det["findings"]:
+    if not det["tool_available"] and not all_findings:
         scan.status = "failed"
     db.add(scan)
     db.flush()
 
     seen: dict[str, list[dict]] = {}
-    for fd in det["findings"]:
+    for fd in all_findings:
         db.add(ScanFinding(id=new_id("find"), scan_id=scan.id, flag_key=fd["flag_key"],
                            file_path=fd.get("file_path", ""), line_number=int(fd.get("line_number", 0) or 0),
                            ast_node_type=fd.get("ast_node_type", ""), is_stale=1 if fd.get("is_stale") else 0,
@@ -116,6 +130,45 @@ def create_scan(body: ScanCreate, db: Session = Depends(get_db)):
                                   source=ev["source"], summary=ev["summary"],
                                   severity=ev.get("severity", ""), value=str(ev.get("value", ""))[:2000],
                                   payload=ev.get("payload", {})))
+        # Provider inventory: one structured row per provider-sourced finding.
+        # Source is always ProviderAST(+provider) — never FlagShark.
+        for r in refs:
+            if r.get("detection_source") == "ProviderAST" and r.get("provider"):
+                db.add(EvidenceRecord(
+                    id=new_id("evi"), flag_id=flag.id, flag_name=key,
+                    repository_name=repo.name, evidence_type="provider-inventory",
+                    confidence_score=float(r.get("confidence", 0.8) or 0.0),
+                    detected_at=now, source=f"ProviderAST({r.get('provider', '')})",
+                    summary=str(r.get("reason", ""))[:2000],
+                    severity="",
+                    value=f"{r.get('method', '')} @ {r.get('file_path', '')}:{r.get('line_number', 0)}",
+                    payload={"provider": r.get("provider", ""),
+                             "method": r.get("method", ""),
+                             "language": r.get("language", "unknown"),
+                             "file_path": r.get("file_path", ""),
+                             "line_number": r.get("line_number", 0)}))
+        # Verified FlagShark stale signals: one structured row per stale finding
+        # (provider/language/confidence/signals/age as reported — never invented).
+        if det["engine"].startswith("FlagShark"):
+            for r in refs:
+                if r.get("signals"):
+                    db.add(EvidenceRecord(
+                        id=new_id("evi"), flag_id=flag.id, flag_name=key,
+                        repository_name=repo.name, evidence_type="stale-signal",
+                        confidence_score=float(r.get("confidence", 0.5) or 0.0),
+                        detected_at=now, source=det["engine"],
+                        summary=str(r.get("reason", ""))[:2000],
+                        severity=str(r.get("severity", "") or "")[:32],
+                        value=";".join(r.get("signals", []) or [])[:2000],
+                        payload={"provider": r.get("provider", ""),
+                                 "language": r.get("language", "unknown"),
+                                 "confidence_tier": r.get("confidence_tier", "unknown"),
+                                 "signals": r.get("signals", []),
+                                 "signal_details": r.get("signal_details", ""),
+                                 "age": r.get("age"),
+                                 "flagshark_version": det.get("version", ""),
+                                 "file_path": r.get("file_path", ""),
+                                 "line_number": r.get("line_number", 0)}))
 
     # repo counters from real data
     keys = list(seen.keys())

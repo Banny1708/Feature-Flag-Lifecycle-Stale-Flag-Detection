@@ -1,4 +1,22 @@
 from ..database import Base  # noqa: F401
+from .lifecycle_models import (  # noqa: F401
+    ANALYSIS_TYPES,
+    DETECTION_STATUSES,
+    LIFECYCLE_STATES,
+    OPERATION_TYPES,
+    RECOMMENDATIONS,
+    REMOVAL_STATUSES,
+    RISK_LEVELS,
+    SETTING_DEFAULTS,
+    VALID_TRANSITIONS,
+    AnalysisRun,
+    AuditLog,
+    DetectionResult,
+    FlagEvaluation,
+    Project,
+    SystemSetting,
+    UntestedPath,
+)
 from .models import (  # noqa: F401
     CodePath,
     CodeReference,

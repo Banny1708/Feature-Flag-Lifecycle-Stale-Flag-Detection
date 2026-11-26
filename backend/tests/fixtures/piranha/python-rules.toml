@@ -1,0 +1,124 @@
+[[rules]]
+name = "flag_to_literal"
+query = """(
+  (identifier) @flag_id
+  (#eq? @flag_id "@flag_name")
+)
+"""
+replace_node = "flag_id"
+replace = "@treated"
+holes = ['flag_name', 'treated']
+groups = ["flag_seed"]
+is_seed_rule = true
+[[rules.filters]]
+enclosing_node = "(if_statement) @stmt"
+[[rules]]
+name = "simplify_if_true"
+query = """(
+  (if_statement
+    condition: (true)
+    consequence: (block) @then
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@then"
+groups = ["py_if_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "simplify_if_false_else"
+query = """(
+  (if_statement
+    condition: (false)
+    consequence: (block)
+    alternative: (else_clause (block) @else)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@else"
+groups = ["py_if_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "simplify_if_false_no_else"
+query = """(
+  (if_statement
+    condition: (false)
+    consequence: (block)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = ""
+groups = ["py_if_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "true_and_x"
+query = """((boolean_operator left: (true) "and" right: (_) @rhs) @op)"""
+replace_node = "op"
+replace = "@rhs"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "x_and_true"
+query = """((boolean_operator left: (_) @lhs "and" right: (true)) @op)"""
+replace_node = "op"
+replace = "@lhs"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "false_and_x"
+query = """((boolean_operator left: (false) "and" right: (_)) @op)"""
+replace_node = "op"
+replace = "False"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "x_and_false"
+query = """((boolean_operator (_) @lhs "and" (false)) @op)"""
+replace_node = "op"
+replace = "False"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "false_or_x"
+query = """((boolean_operator left: (false) "or" right: (_) @rhs) @op)"""
+replace_node = "op"
+replace = "@rhs"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "x_or_false"
+query = """((boolean_operator left: (_) @lhs "or" right: (false)) @op)"""
+replace_node = "op"
+replace = "@lhs"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "true_or_x"
+query = """((boolean_operator left: (true) "or" right: (_)) @op)"""
+replace_node = "op"
+replace = "True"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "x_or_true"
+query = """((boolean_operator left: (_) "or" (true)) @op)"""
+replace_node = "op"
+replace = "True"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "not_true"
+query = """((not_operator argument: (true)) @op)"""
+replace_node = "op"
+replace = "False"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false
+[[rules]]
+name = "not_false"
+query = """((not_operator argument: (false)) @op)"""
+replace_node = "op"
+replace = "True"
+groups = ["py_bool_cleanup"]
+is_seed_rule = false

@@ -59,7 +59,7 @@ def scan_out(s: Scan, findings: list | None = None) -> ScanOut:
 def flag_out(f: FeatureFlag) -> FeatureFlagOut:
     stale = f.stale_since or None
     return FeatureFlagOut(id=f.id, name=f.name, key=f.key, description=f.description,
-                          repository_id=f.repository_id, repository_name=f.repository_name,
+                          repository_id=f.repository_id or "", repository_name=f.repository_name,
                           status=f.status, risk=f.risk, flag_type=f.flag_type, owner=f.owner,
                           owner_team=f.owner_team or None, created_at=f.created_at_flag,
                           last_modified=f.last_modified, stale_since=stale,
@@ -106,9 +106,11 @@ def risk_out(a: RiskAssessment) -> RiskAssessmentOut:
                              score=f.score, level=f.level) for f in (a.factors or [])]
     lvl = (a.overall_risk or "medium").upper()
     return RiskAssessmentOut(id=a.id, flag_id=a.flag_id, flag_name=a.flag_name,
-                             overall_risk=a.overall_risk, risk_level=lvl, score=a.score or a.blast_radius_score,
+                             overall_risk=a.overall_risk, risk_level=(a.risk_level or lvl),
+                             score=a.score or a.blast_radius_score,
                              blast_radius_score=a.blast_radius_score, factors=factors,
                              recommendations=a.recommendations or [],
+                             recommendation=(a.recommendation or "REVIEW_REQUIRED"),
                              assessed_at=a.assessed_at,
                              estimated_cleanup_hours=a.estimated_cleanup_hours)
 
@@ -123,7 +125,9 @@ def removal_out(o: RemovalOperation) -> RemovalOut:
                       created_at=o.created_at.isoformat() if hasattr(o.created_at, "isoformat") else "",
                       completed_at=o.completed_at or None, executed_by=o.executed_by,
                       diff_summary=o.diff_summary or None, safety_branch=o.safety_branch or "",
-                      base_commit=o.base_commit or "", verification_status=o.verification_status or "UNVERIFIED")
+                      base_commit=o.base_commit or "", verification_status=o.verification_status or "UNVERIFIED",
+                      operation_type=o.operation_type or "REMOVE",
+                      cleanup_status=o.cleanup_status or None)
 
 
 def verification_out(v: VerificationResult) -> VerificationOut:

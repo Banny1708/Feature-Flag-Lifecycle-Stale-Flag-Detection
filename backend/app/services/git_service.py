@@ -110,3 +110,13 @@ def file_history(path: Path, rel_file: str, limit: int = 10) -> list[dict]:
             if len(parts) == 3:
                 out.append({"hash": parts[0], "date": parts[1], "subject": parts[2]})
     return out
+
+
+def tracked_clean(path: Path) -> bool:
+    """True when no TRACKED file is modified/staged/deleted. Untracked files
+    (build caches, __pycache__) are ignored: Piranha never creates files, so
+    only tracked dirt can come from a previous operation or the operator."""
+    r = run_cmd([settings.GIT_BIN, "status", "--porcelain"], cwd=str(path), timeout=30)
+    if r.returncode != 0:
+        return False
+    return all(not l.strip() or l.startswith("??") for l in r.stdout.splitlines())

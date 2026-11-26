@@ -1,18 +1,95 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/layouts/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
-import { Sliders, GitBranch, Save, CheckCircle2 } from 'lucide-react';
+import { lifecycleService, SystemSettings } from '@/services/lifecycleService';
+import { Sliders, GitBranch, Save, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+
+const ENGINE_OPTIONS = [
+  'FlagShark Multi-Language Parser',
+  'Tree-sitter AST Analyzer',
+  'Uber Piranha Pre-Pass',
+];
 
 export const SettingsPage: React.FC = () => {
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+    lifecycleService
+      .getSettings()
+      .then((s) => {
+        if (isMounted) setSettings(s);
+      })
+      .catch((err: Error) => {
+        if (isMounted) setError(err.message || 'Failed to load settings');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
+
+  const set = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setIsSaved(false);
   };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await lifecycleService.updateSettings({
+        stale_days_threshold: Number(settings.stale_days_threshold),
+        warn_days_threshold: Number(settings.warn_days_threshold),
+        scanner_engine: settings.scanner_engine,
+        github_token: settings.github_token,
+        slack_webhook: settings.slack_webhook,
+      });
+      setSettings(updated);
+      setIsSaved(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading || !settings) {
+    if (error) {
+      return (
+        <div className="space-y-6 max-w-4xl">
+          <PageHeader title="System & Governance Settings" description="Configure AST engine thresholds and integrations." />
+          <Card className="p-8 text-center space-y-3">
+            <p className="text-sm text-rose-300 font-medium">Could not reach the backend API</p>
+            <p className="text-xs text-zinc-400 font-mono">{error}</p>
+            <Button variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)} icon={<RefreshCw className="w-3.5 h-3.5" />}>
+              Retry
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center justify-center py-24 text-sm text-zinc-400 gap-2">
+        <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+        Loading system settings…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -24,12 +101,19 @@ export const SettingsPage: React.FC = () => {
             variant="primary"
             size="sm"
             onClick={handleSave}
+            isLoading={isSaving}
             icon={isSaved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
           >
             {isSaved ? 'Settings Saved!' : 'Save Configuration'}
           </Button>
         }
       />
+
+      {saveError && (
+        <div className="p-3 rounded-lg bg-rose-950/50 border border-rose-800/60 text-xs text-rose-200 font-mono">
+          {saveError}
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Staleness Rules & Thresholds */}
@@ -49,7 +133,9 @@ export const SettingsPage: React.FC = () => {
                 </label>
                 <input
                   type="number"
-                  defaultValue={60}
+                  min={1}
+                  value={settings.stale_days_threshold}
+                  onChange={(e) => set('stale_days_threshold', Number(e.target.value))}
                   className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
                 />
                 <p className="text-[11px] text-zinc-400 mt-1">
@@ -63,7 +149,9 @@ export const SettingsPage: React.FC = () => {
                 </label>
                 <input
                   type="number"
-                  defaultValue={90}
+                  min={1}
+                  value={settings.warn_days_threshold}
+                  onChange={(e) => set('warn_days_threshold', Number(e.target.value))}
                   className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
                 />
                 <p className="text-[11px] text-zinc-400 mt-1">
@@ -73,26 +161,16 @@ export const SettingsPage: React.FC = () => {
 
               <div>
                 <label className="block text-zinc-300 font-medium mb-1">
-                  Release Flag Max Operational Lifespan (Days)
-                </label>
-                <input
-                  type="number"
-                  defaultValue={90}
-                  className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
-                />
-                <p className="text-[11px] text-zinc-400 mt-1">
-                  Maximum allowable time before a release toggle is auto-marked stale.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-zinc-300 font-medium mb-1">
                   AST Static Scanner Engine
                 </label>
-                <select className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 focus:outline-none focus:border-indigo-500">
-                  <option>FlagShark Multi-Language Parser</option>
-                  <option>Tree-sitter AST Analyzer</option>
-                  <option>Uber Piranha Pre-Pass</option>
+                <select
+                  value={ENGINE_OPTIONS.includes(settings.scanner_engine) ? settings.scanner_engine : ENGINE_OPTIONS[0]}
+                  onChange={(e) => set('scanner_engine', e.target.value)}
+                  className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 focus:outline-none focus:border-indigo-500"
+                >
+                  {ENGINE_OPTIONS.map((opt) => (
+                    <option key={opt}>{opt}</option>
+                  ))}
                 </select>
                 <p className="text-[11px] text-zinc-400 mt-1">
                   Underlying engine utilized for AST traversal and control flow graphs.
@@ -102,7 +180,7 @@ export const SettingsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Integration Credentials (Mocked for Dev) */}
+        {/* Integration Credentials */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -117,11 +195,14 @@ export const SettingsPage: React.FC = () => {
               </label>
               <input
                 type="password"
-                defaultValue="ghp_mocktokenforfeatureflagcapstone2026"
+                value={settings.github_token}
+                onChange={(e) => set('github_token', e.target.value)}
+                placeholder="ghp_… (optional, stored server-side)"
+                autoComplete="off"
                 className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
               />
               <p className="text-[11px] text-zinc-400 mt-1">
-                Used by the future TypeScript backend to invoke Piranha and open cleanup PRs.
+                Stored in the backend database (never in source code) and used for automated cleanup PRs.
               </p>
             </div>
 
@@ -131,8 +212,9 @@ export const SettingsPage: React.FC = () => {
               </label>
               <input
                 type="text"
+                value={settings.slack_webhook}
+                onChange={(e) => set('slack_webhook', e.target.value)}
                 placeholder="https://hooks.slack.com/services/..."
-                defaultValue="https://hooks.slack.com/services/T00/B00/flagops-alerts"
                 className="w-full px-3 py-2 bg-surface-100 border border-border rounded text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
               />
             </div>

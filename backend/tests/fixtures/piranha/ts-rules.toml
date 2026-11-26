@@ -1,0 +1,127 @@
+[[rules]]
+name = "flag_to_literal"
+query = """
+(
+  (identifier) @flag_id
+  (#eq? @flag_id "@flag_name")
+)
+"""
+replace_node = "flag_id"
+replace = "@treated"
+holes = ["flag_name", "treated"]
+groups = ["flag_seed"]
+is_seed_rule = true
+
+[[rules.filters]]
+enclosing_node = "(if_statement) @stmt"
+
+[[rules]]
+name = "simplify_if_true"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (true))
+    consequence: (statement_block) @then
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@then"
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "simplify_if_false_else"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (false))
+    consequence: (statement_block)
+    alternative: (else_clause (statement_block) @else)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@else"
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "true_and_x"
+query = """((binary_expression left: (true) operator: "&&" right: (_) @rhs) @op)"""
+replace_node = "op"
+replace = "@rhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_and_true"
+query = """((binary_expression left: (_) @lhs operator: "&&" right: (true)) @op)"""
+replace_node = "op"
+replace = "@lhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "false_and_x"
+query = """((binary_expression left: (false) operator: "&&" right: (_)) @op)"""
+replace_node = "op"
+replace = "false"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_and_false"
+query = """((binary_expression left: (_) operator: "&&" right: (false)) @op)"""
+replace_node = "op"
+replace = "false"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "false_or_x"
+query = """((binary_expression left: (false) operator: "||" right: (_) @rhs) @op)"""
+replace_node = "op"
+replace = "@rhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_or_false"
+query = """((binary_expression left: (_) @lhs operator: "||" right: (false)) @op)"""
+replace_node = "op"
+replace = "@lhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "true_or_x"
+query = """((binary_expression left: (true) operator: "||" right: (_)) @op)"""
+replace_node = "op"
+replace = "true"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_or_true"
+query = """((binary_expression left: (_) operator: "||" right: (true)) @op)"""
+replace_node = "op"
+replace = "true"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "not_true"
+query = """((unary_expression operator: "!" argument: (true)) @op)"""
+replace_node = "op"
+replace = "false"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "not_false"
+query = """((unary_expression operator: "!" argument: (false)) @op)"""
+replace_node = "op"
+replace = "true"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false

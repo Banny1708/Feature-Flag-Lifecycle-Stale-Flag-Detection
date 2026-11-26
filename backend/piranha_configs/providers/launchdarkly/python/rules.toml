@@ -1,0 +1,23 @@
+# LaunchDarkly provider DETECTION rules (match-only, no rewrites).
+#
+# Verified 2026-10-25 against polyglot-piranha 0.4.9 with the prov fixture:
+# only literal-key value calls match. variation_detail (object return),
+# computed keys ("prefix_" + name) and env-derived keys (os.getenv(...))
+# do NOT match. Findings are labeled ProviderAST, never FlagShark.
+#
+# Python SDK surface verified from launchdarkly-server-sdk 9.18.3 wheel:
+# the client exposes variation() + variation_detail() only. Only
+# `variation` is matched here (variation_detail is intentionally excluded).
+
+[[rules]]
+name = "ld_variation_ref"
+query = """
+(
+  (call
+    function: (attribute
+      attribute: (identifier) @method
+      (#match? @method "^(variation)$"))
+    arguments: (argument_list
+      . (string) @key)) @call
+)
+"""

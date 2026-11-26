@@ -1,31 +1,32 @@
 import { RemovalOperation, VerificationResult } from '@/types';
-import { mockRemovalOperations } from '@/data/mockOperations';
-import { mockVerificationResults } from '@/data/mockVerification';
-import { apiGet, apiPost, backendFirst, simulateFetch } from './apiClient';
+import { apiGet, apiPost } from './apiClient';
+
+export interface DryRunResult extends RemovalOperation {
+  plannedFiles?: string[];
+}
 
 export const removalService = {
   async getRemovalOperations(): Promise<RemovalOperation[]> {
-    return backendFirst(
-      () => apiGet<RemovalOperation[]>('/api/removals'),
-      () => simulateFetch(mockRemovalOperations)
-    );
+    return apiGet<RemovalOperation[]>('/api/removals');
   },
 
   async getVerificationResults(): Promise<VerificationResult[]> {
-    return backendFirst(
-      () => apiGet<VerificationResult[]>('/api/verifications'),
-      () => simulateFetch(mockVerificationResults)
-    );
+    return apiGet<VerificationResult[]>('/api/verifications');
   },
 
-  async getVerificationByOperationId(opId: string): Promise<VerificationResult | undefined> {
-    return backendFirst(
-      () => apiGet<VerificationResult>(`/api/removals/${encodeURIComponent(opId)}/verification`),
-      async () => {
-        const results = await simulateFetch(mockVerificationResults);
-        return results.find((r) => r.operationId === opId);
-      }
-    ).catch(() => undefined);
+  async getVerificationByOperationId(opId: string): Promise<VerificationResult> {
+    return apiGet<VerificationResult>(`/api/removals/${encodeURIComponent(opId)}/verification`);
+  },
+
+  /**
+   * Plan a removal without touching the repository.
+   * Returns planned files/lines; the repo is never modified.
+   */
+  async dryRun(flagId: string, targetBranch = 'main'): Promise<DryRunResult> {
+    return apiPost<DryRunResult>('/api/removals/dry-run', {
+      flag_id: flagId,
+      target_branch: targetBranch,
+    });
   },
 
   /**
@@ -39,5 +40,10 @@ export const removalService = {
       target_branch: targetBranch,
       tool_target: 'Piranha',
     });
+  },
+
+  /** Restore the pre-removal safety branch. Returns the rollback operation info. */
+  async rollbackRemoval(removalId: string): Promise<{ rollback_operation_id: string; restored_branch: string }> {
+    return apiPost(`/api/removals/${encodeURIComponent(removalId)}/rollback`);
   },
 };

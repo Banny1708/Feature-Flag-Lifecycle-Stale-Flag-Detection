@@ -1,0 +1,22 @@
+# LaunchDarkly provider DETECTION rules (match-only, no rewrites).
+#
+# Verified 2026-10-25 against polyglot-piranha 0.4.9 with the prov fixture:
+# variation/boolVariation/stringVariation/numberVariation/jsonVariation with
+# literal keys match. *Detail variants (object return), computed keys and
+# env-derived keys do NOT match. Findings are labeled ProviderAST.
+#
+# Method list cross-checked with FlagShark's verified TypeScript detectors
+# (Phase 2) and proven here by direct execution.
+
+[[rules]]
+name = "ld_variation_ref"
+query = """
+(
+  (call_expression
+    function: (member_expression
+      property: (property_identifier) @method
+      (#match? @method "^(variation|boolVariation|stringVariation|numberVariation|jsonVariation)$"))
+    arguments: (arguments
+      . (string) @key)) @call
+)
+"""

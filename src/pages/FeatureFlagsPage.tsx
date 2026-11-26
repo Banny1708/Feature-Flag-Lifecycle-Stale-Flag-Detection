@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/layouts/PageHeader';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -9,51 +9,73 @@ import { FlagStatusBadge } from '@/components/domain/FlagStatusBadge';
 import { RiskBadge } from '@/components/domain/RiskBadge';
 import { RolloutBar } from '@/components/domain/RolloutBar';
 import { EmptyState } from '@/components/common/EmptyState';
-import { FeatureFlag } from '@/types';
-import { mockFeatureFlags } from '@/data/mockFeatureFlags';
-import { mockRepositories } from '@/data/mockRepositories';
-import { Flag, Eye, Code2, Filter, Calendar, Users, Activity } from 'lucide-react';
+import { FeatureFlag, Repository } from '@/types';
+import { flagService } from '@/services/flagService';
+import { repositoryService } from '@/services/repositoryService';
+import { Eye, Code2, Filter, Calendar, Users, Activity, Loader2, RefreshCw, Download } from 'lucide-react';
 import { formatDate, formatCompactNumber } from '@/utils/formatters';
 import { Link } from 'react-router-dom';
 
 export const FeatureFlagsPage: React.FC = () => {
+  const [flags, setFlags] = useState<FeatureFlag[]>([]);
+  const [repos, setRepos] = useState<Repository[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRepo, setSelectedRepo] = useState<string>('all');
   const [selectedRisk, setSelectedRisk] = useState<string>('all');
   const [inspectFlag, setInspectFlag] = useState<FeatureFlag | null>(null);
 
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+    Promise.all([flagService.getFeatureFlags(), repositoryService.getRepositories()])
+      .then(([f, r]) => {
+        if (!isMounted) return;
+        setFlags(f);
+        setRepos(r);
+      })
+      .catch((err: Error) => {
+        if (isMounted) setError(err.message || 'Failed to load feature flags');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
+
   const tabs = [
-    { id: 'all', label: 'All Flags', count: mockFeatureFlags.length },
-    { id: 'active', label: 'Active', count: mockFeatureFlags.filter((f) => f.status === 'active').length },
+    { id: 'all', label: 'All Flags', count: flags.length },
+    { id: 'active', label: 'Active', count: flags.filter((f) => f.status === 'active').length },
     {
       id: 'potentially-stale',
       label: 'Potentially Stale',
-      count: mockFeatureFlags.filter((f) => f.status === 'potentially-stale').length,
+      count: flags.filter((f) => f.status === 'potentially-stale').length,
     },
-    { id: 'stale', label: 'Stale', count: mockFeatureFlags.filter((f) => f.status === 'stale').length },
+    { id: 'stale', label: 'Stale', count: flags.filter((f) => f.status === 'stale').length },
     {
       id: 'removal-pending',
       label: 'In Removal',
-      count: mockFeatureFlags.filter((f) => f.status === 'removal-pending').length,
+      count: flags.filter((f) => f.status === 'removal-pending').length,
     },
-    { id: 'removed', label: 'Archived', count: mockFeatureFlags.filter((f) => f.status === 'removed').length },
+    { id: 'removed', label: 'Archived', count: flags.filter((f) => f.status === 'removed').length },
   ];
 
-  const filteredFlags = mockFeatureFlags.filter((flag) => {
-    // Status tab filter
+  const filteredFlags = flags.filter((flag) => {
     if (activeTab !== 'all' && flag.status !== activeTab) {
       return false;
     }
-    // Repo filter
     if (selectedRepo !== 'all' && flag.repositoryId !== selectedRepo) {
       return false;
     }
-    // Risk filter
     if (selectedRisk !== 'all' && flag.risk !== selectedRisk) {
       return false;
     }
-    // Search query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const match =
@@ -66,13 +88,47 @@ export const FeatureFlagsPage: React.FC = () => {
     return true;
   });
 
+  const exportInventory = () => {
+    const blob = new Blob([JSON.stringify(filteredFlags, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'feature-flag-inventory.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-sm text-zinc-400 gap-2">
+        <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+        Loading flag inventory from the API…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Feature Flag Catalog" description="Comprehensive inventory of feature flags." />
+        <Card className="p-8 text-center space-y-3">
+          <p className="text-sm text-rose-300 font-medium">Could not reach the backend API</p>
+          <p className="text-xs text-zinc-400 font-mono">{error}</p>
+          <Button variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)} icon={<RefreshCw className="w-3.5 h-3.5" />}>
+            Retry
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Feature Flag Catalog"
         description="Comprehensive inventory of feature flags across all microservices, tracking rollout percentages, AST references, and lifecycle health."
         actions={
-          <Button variant="secondary" size="sm" icon={<Flag className="w-3.5 h-3.5 text-indigo-400" />}>
+          <Button variant="secondary" size="sm" onClick={exportInventory} icon={<Download className="w-3.5 h-3.5 text-indigo-400" />}>
             Export Inventory (JSON)
           </Button>
         }
@@ -101,7 +157,7 @@ export const FeatureFlagsPage: React.FC = () => {
               className="bg-surface-100 border border-border rounded px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"
             >
               <option value="all">All Repositories</option>
-              {mockRepositories.map((r) => (
+              {repos.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
@@ -128,7 +184,19 @@ export const FeatureFlagsPage: React.FC = () => {
 
       {/* Flags Datatable */}
       <Card>
-        {filteredFlags.length === 0 ? (
+        {flags.length === 0 ? (
+          <EmptyState
+            title="No feature flags found"
+            description="The backend has no registered feature flags yet. Register a repository and run a detection scan to discover flags."
+            action={
+              <Link to="/repositories">
+                <Button variant="secondary" size="sm">
+                  Go to Repositories
+                </Button>
+              </Link>
+            }
+          />
+        ) : filteredFlags.length === 0 ? (
           <EmptyState
             title="No matching feature flags found"
             description="Try adjusting your status tab, search query, or repository filters."

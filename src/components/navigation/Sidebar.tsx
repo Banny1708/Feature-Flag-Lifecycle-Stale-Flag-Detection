@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { flagService } from '@/services/flagService';
+import { repositoryService } from '@/services/repositoryService';
+import { removalService } from '@/services/removalService';
 import {
   LayoutDashboard,
   GitFork,
@@ -22,19 +25,48 @@ interface NavItem {
   badgeVariant?: 'emerald' | 'amber' | 'rose' | 'violet';
 }
 
-const navItems: NavItem[] = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Repositories', path: '/repositories', icon: GitFork, badge: '5' },
-  { name: 'Feature Flags', path: '/flags', icon: Flag, badge: '98' },
-  { name: 'Stale Flags', path: '/stale-flags', icon: AlertTriangle, badge: '24', badgeVariant: 'rose' },
-  { name: 'Code Analysis', path: '/code-analysis', icon: Code2 },
-  { name: 'Removal Operations', path: '/removal-operations', icon: Trash2, badge: '3', badgeVariant: 'violet' },
-  { name: 'Verification', path: '/verification', icon: CheckCircle2 },
-  { name: 'Evidence & Reports', path: '/reports', icon: FileText },
-  { name: 'Settings', path: '/settings', icon: Settings },
-];
-
 export const Sidebar: React.FC = () => {
+  const [badges, setBadges] = useState<{ repos: string; flags: string; stale: string; removals: string }>({
+    repos: '',
+    flags: '',
+    stale: '',
+    removals: '',
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      repositoryService.getRepositories().catch(() => []),
+      flagService.getFeatureFlags().catch(() => []),
+      removalService.getRemovalOperations().catch(() => []),
+    ]).then(([repos, flags, ops]) => {
+      if (!isMounted) return;
+      setBadges({
+        repos: repos.length > 0 ? String(repos.length) : '',
+        flags: flags.length > 0 ? String(flags.length) : '',
+        stale: (() => {
+          const n = flags.filter((f) => f.status === 'stale' || f.status === 'potentially-stale').length;
+          return n > 0 ? String(n) : '';
+        })(),
+        removals: ops.length > 0 ? String(ops.length) : '',
+      });
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const navItems: NavItem[] = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Repositories', path: '/repositories', icon: GitFork, badge: badges.repos || undefined },
+    { name: 'Feature Flags', path: '/flags', icon: Flag, badge: badges.flags || undefined },
+    { name: 'Stale Flags', path: '/stale-flags', icon: AlertTriangle, badge: badges.stale || undefined, badgeVariant: 'rose' },
+    { name: 'Code Analysis', path: '/code-analysis', icon: Code2 },
+    { name: 'Removal Operations', path: '/removal-operations', icon: Trash2, badge: badges.removals || undefined, badgeVariant: 'violet' },
+    { name: 'Verification', path: '/verification', icon: CheckCircle2 },
+    { name: 'Evidence & Reports', path: '/reports', icon: FileText },
+    { name: 'Settings', path: '/settings', icon: Settings },
+  ];
   return (
     <aside className="w-64 h-screen bg-[#0d121c] border-r border-border flex flex-col shrink-0 select-none">
       {/* Brand Header */}

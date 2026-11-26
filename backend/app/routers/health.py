@@ -24,6 +24,28 @@ def health() -> dict:
     }
 
 
+@router.get("/health", summary="Liveness probe")
+def liveness() -> dict:
+    return {"status": "ok"}
+
+
+@router.get("/health/db", summary="Readiness probe: verifies an actual database connection")
+def db_health() -> dict:
+    from sqlalchemy import text
+
+    from ..config import effective_database_url
+    from ..database import engine
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        url = effective_database_url()
+        dialect = url.split(":")[0]
+        return {"status": "ok", "dialect": dialect}
+    except Exception as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"database unreachable: {exc}")
+
+
 @router.get("/api/tools/status", summary="Detailed tool status list")
 def tools_status() -> list[ToolStatus]:
     fs = flagshark_service.flagshark_status()

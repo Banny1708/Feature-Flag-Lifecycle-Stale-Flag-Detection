@@ -16,3 +16,4 @@ vite.config.js
 Dockerfile
 docker-compose.yml
 README.md
+AUDIT_REPORT.md

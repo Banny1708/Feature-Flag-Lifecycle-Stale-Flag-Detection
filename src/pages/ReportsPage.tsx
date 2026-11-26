@@ -1,21 +1,88 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/layouts/PageHeader';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { Tabs } from '@/components/common/Tabs';
-import { mockReports } from '@/data/mockReports';
-import { mockEvidenceRecords } from '@/data/mockEvidence';
-import { FileText, Download } from 'lucide-react';
+import { EmptyState } from '@/components/common/EmptyState';
+import { reportService } from '@/services/reportService';
+import { Report, EvidenceRecord } from '@/types';
+import { FileText, Download, Loader2, RefreshCw } from 'lucide-react';
 import { formatDate } from '@/utils/formatters';
 
 export const ReportsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('reports');
+  const [reports, setReports] = useState<Report[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+    Promise.all([reportService.getReports(), reportService.getEvidenceRecords()])
+      .then(([r, e]) => {
+        if (!isMounted) return;
+        setReports(r);
+        setEvidence(e);
+      })
+      .catch((err: Error) => {
+        if (isMounted) setError(err.message || 'Failed to load reports and evidence');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
+
+  const generateReport = async () => {
+    setIsGenerating(true);
+    setActionError(null);
+    try {
+      const title = `Governance Report — ${new Date().toISOString().slice(0, 10)}`;
+      await reportService.generateReport(title, 'stale-summary');
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Report generation failed');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const tabs = [
-    { id: 'reports', label: 'Generated Reports', count: mockReports.length },
-    { id: 'evidence', label: 'Staleness Evidence Vault', count: mockEvidenceRecords.length },
+    { id: 'reports', label: 'Generated Reports', count: reports.length },
+    { id: 'evidence', label: 'Staleness Evidence Vault', count: evidence.length },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-sm text-zinc-400 gap-2">
+        <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+        Loading reports and evidence…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Evidence Records & Governance Reports" description="Audit logs, telemetry proof records, and executive reports." />
+        <Card className="p-8 text-center space-y-3">
+          <p className="text-sm text-rose-300 font-medium">Could not reach the backend API</p>
+          <p className="text-xs text-zinc-400 font-mono">{error}</p>
+          <Button variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)} icon={<RefreshCw className="w-3.5 h-3.5" />}>
+            Retry
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -26,7 +93,8 @@ export const ReportsPage: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
-            onClick={() => alert('New executive compliance report generation started.')}
+            isLoading={isGenerating}
+            onClick={generateReport}
             icon={<FileText className="w-3.5 h-3.5" />}
           >
             Generate New Report
@@ -34,74 +102,94 @@ export const ReportsPage: React.FC = () => {
         }
       />
 
+      {actionError && (
+        <div className="p-3 rounded-lg bg-rose-950/50 border border-rose-800/60 text-xs text-rose-200 font-mono">
+          {actionError}
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'reports' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {mockReports.map((report) => (
-            <Card key={report.id} className="p-5 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Badge variant="violet" size="sm" className="uppercase font-mono text-[10px] mb-1.5">
-                      {report.type}
-                    </Badge>
-                    <h3 className="text-sm font-semibold text-zinc-100">{report.title}</h3>
-                    <div className="text-[11px] text-zinc-400 mt-0.5">
-                      Generated on {formatDate(report.generatedAt)}
+        reports.length === 0 ? (
+          <EmptyState
+            title="No reports generated yet"
+            description="Generate a governance report to snapshot scanned flags, stale findings, and reclaimed technical debt."
+            action={
+              <Button variant="primary" size="sm" isLoading={isGenerating} onClick={generateReport} icon={<FileText className="w-3.5 h-3.5" />}>
+                Generate New Report
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {reports.map((report) => (
+              <Card key={report.id} className="p-5 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <Badge variant="violet" size="sm" className="uppercase font-mono text-[10px] mb-1.5">
+                        {report.type}
+                      </Badge>
+                      <h3 className="text-sm font-semibold text-zinc-100">{report.title}</h3>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">
+                        Generated on {formatDate(report.generatedAt)}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-surface-100 border border-border text-zinc-400">
+                      {report.downloadFormat}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 p-3 rounded bg-surface-100/70 border border-border/60 text-xs">
+                    <div>
+                      <span className="text-zinc-400 text-[11px]">Flags Scanned:</span>
+                      <div className="font-mono font-semibold text-zinc-200">
+                        {report.summary.totalScannedFlags} flags
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 text-[11px]">Stale Flags:</span>
+                      <div className="font-mono font-semibold text-rose-400">
+                        {report.summary.staleFlagsIdentified} flags
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 text-[11px]">Lines Removed:</span>
+                      <div className="font-mono font-semibold text-emerald-400">
+                        -{report.summary.codeLinesEliminated} lines
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 text-[11px]">Debt Reclaimed:</span>
+                      <div className="font-mono font-semibold text-indigo-300">
+                        {report.summary.techDebtReductionHours} hrs
+                      </div>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-surface-100 border border-border text-zinc-400">
-                    {report.downloadFormat}
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 p-3 rounded bg-surface-100/70 border border-border/60 text-xs">
-                  <div>
-                    <span className="text-zinc-400 text-[11px]">Flags Scanned:</span>
-                    <div className="font-mono font-semibold text-zinc-200">
-                      {report.summary.totalScannedFlags} flags
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-zinc-400 text-[11px]">Stale Flags:</span>
-                    <div className="font-mono font-semibold text-rose-400">
-                      {report.summary.staleFlagsIdentified} flags
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-zinc-400 text-[11px]">Lines Removed:</span>
-                    <div className="font-mono font-semibold text-emerald-400">
-                      -{report.summary.codeLinesEliminated} lines
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-zinc-400 text-[11px]">Debt Reclaimed:</span>
-                    <div className="font-mono font-semibold text-indigo-300">
-                      {report.summary.techDebtReductionHours} hrs
-                    </div>
-                  </div>
+                <div className="pt-4 mt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-400 font-mono">Status: {report.status === 'ready' ? 'Ready' : report.status}</span>
+                  <a href={reportService.downloadUrl(report.id)} download>
+                    <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>
+                      Download {report.downloadFormat.toUpperCase()}
+                    </Button>
+                  </a>
                 </div>
-              </div>
-
-              <div className="pt-4 mt-3 border-t border-border flex items-center justify-between">
-                <span className="text-[11px] text-zinc-400 font-mono">Status: Ready</span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => alert(`Downloading ${report.title}.${report.downloadFormat}`)}
-                  icon={<Download className="w-3.5 h-3.5" />}
-                >
-                  Download {report.downloadFormat.toUpperCase()}
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : evidence.length === 0 ? (
+        <EmptyState
+          title="No evidence records yet"
+          description="Evidence is collected by detection scans and analysis runs. Run an analysis to populate the vault."
+        />
       ) : (
         <div className="space-y-4">
-          {mockEvidenceRecords.map((item) => (
+          {evidence.map((item) => (
             <Card key={item.id} className="p-5">
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
@@ -112,7 +200,7 @@ export const ReportsPage: React.FC = () => {
                     </Badge>
                   </div>
                   <div className="text-xs text-zinc-400 font-mono">
-                    Confidence: <strong className="text-emerald-400">{(item.confidenceScore * 100).toFixed(0)}%</strong> • {item.source}
+                    Confidence: <strong className="text-emerald-400">{((item.confidenceScore ?? 0) * 100).toFixed(0)}%</strong> • {item.source}
                   </div>
                 </div>
 
@@ -120,7 +208,7 @@ export const ReportsPage: React.FC = () => {
 
                 <div className="p-3 rounded bg-[#0b0f19] border border-border text-xs font-mono text-zinc-400">
                   <div className="text-zinc-500 text-[11px] mb-1">Telemetry Proof Payload:</div>
-                  <pre className="text-indigo-300 whitespace-pre-wrap">{JSON.stringify(item.payload, null, 2)}</pre>
+                  <pre className="text-indigo-300 whitespace-pre-wrap">{JSON.stringify(item.payload ?? {}, null, 2)}</pre>
                 </div>
               </div>
             </Card>

@@ -15,9 +15,9 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 Open http://127.0.0.1:8000/docs for OpenAPI docs.
 
-On startup the server creates tables (if missing) and seeds 5 repositories,
-4 flags, 1 scan, evidence, code refs/paths, risk, 1 removal, verification and
-1 report — the same dataset the frontend mocks show, so the UI works immediately.
+On startup the server creates tables (if missing). No demo data is inserted:
+a fresh database stays empty until real repositories are connected and scanned.
+(The automated tests use isolated fixtures in `tests/fixtures.py`.)
 
 ## Full lifecycle workflow
 
@@ -46,10 +46,11 @@ curl -X POST localhost:8000/api/flags/<flag-id>/remove \
 
 | Tool | Behavior when missing |
 |---|---|
-| FlagShark (`FLAGS_HARK_BIN`) | Scan falls back to an honest local reference scan labelled `Regex-Fallback`; if that finds nothing the scan is `failed` with "FlagShark is not installed" |
-| Piranha (`PIRANHA_BIN`) | `POST .../remove` returns 500 `Piranha UNAVAILABLE`; nothing is modified |
+| FlagShark (`FLAGS_HARK_BIN`, official `flagshark@2.8.0` pinned in Dockerfile) | `flagshark scan --format json` (cwd = repo; exits 0/1/2); stale-only `flags[]` normalized with real language/provider/signals/age; `ast_node_type` honestly `"Unknown"`; failures/timeouts fall back to the labelled `Regex-Fallback`; no binary + no references → scan `failed` with "FlagShark is not installed" |
+| ProviderAST (LaunchDarkly, same pinned Piranha lib, match-only rules) | Supplement to FlagShark, never a replacement: import-gated match scans for literal-key `variation`/`boolVariation`/`stringVariation`/`numberVariation`/`jsonVariation` calls (py/ts). Findings are inventory with source `ProviderAST(<provider>)`, never stale verdicts; detail-variants, computed and env-derived keys are excluded by construction |
+| Piranha (`polyglot-piranha==0.4.9`, pinned in requirements/Dockerfile) | Verified adapter: Python-API execution in an isolated subprocess (`piranha_runner.py`), shipped rule configs for `python`/`typescript`/`tsx` only (incl. LaunchDarkly `variation*` call seeds). Unsupported languages/config problems fail closed (`UNSUPPORTED`, never a guessed cleanup). Dry-run is mutation-free and purity-verified; approved cleanup captures the real unified diff, runs tests + syntax check + FlagShark re-scan, and rolls back via safety-branch reset. |
 | git | Git evidence fields return `"UNAVAILABLE"`; removal is refused (safety branch required) |
-| Maven/JaCoCo | Test command auto-detected (`pom.xml` -> `mvn -q test`, else npm/pytest/go); coverage stays `"unavailable"` unless a real `jacoco.xml` is parsed |
+| Maven/JaCoCo | Test command auto-detected (root `pom.xml` → `mvn -q test`, else npm-with-test-script/pytest/go; subdirectories scanned to depth 3, monorepo-aware). Missing tool with markers present → explicit `TOOL_UNAVAILABLE`, never a pass. Coverage stays `"unavailable"` unless a real `jacoco.xml` is parsed (no thresholds) |
 
 Removal verdicts are `SUCCESS` / `FAILED` / `UNVERIFIED` — never SUCCESS on Piranha
 exit code alone: flag references must be gone AND tests must pass.

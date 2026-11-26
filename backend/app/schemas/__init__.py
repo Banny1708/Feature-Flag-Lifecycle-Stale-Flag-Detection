@@ -1,3 +1,20 @@
+from .lifecycle_schemas import (  # noqa: F401
+    AnalysisRunCreate,
+    AnalysisRunOut,
+    AuditLogOut,
+    DetectionResultOut,
+    DryRunIn,
+    EvaluationIn,
+    EvaluationOut,
+    EvidenceOut2,
+    FlagCreate,
+    FlagPatch,
+    ProjectCreate,
+    ProjectOut,
+    RemovalCreate2,
+    RiskAssessmentCreate,
+    UntestedPathOut,
+)
 from .schemas import (  # noqa: F401
     CodePathOut,
     CodeReferenceOut,

@@ -30,7 +30,12 @@ export type RemovalStatus =
   | 'in-review'
   | 'merged'
   | 'failed'
-  | 'aborted';
+  | 'aborted'
+  | 'PENDING'
+  | 'RUNNING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'ROLLED_BACK';
 
 export type RemovalTool =
   | 'Piranha'
@@ -119,7 +124,7 @@ export interface ScanResult {
   status: 'success' | 'partial' | 'failed';
   totalFlagsDetected: number;
   staleFlagsDetected: number;
-  scannerEngine: 'FlagShark-engine' | 'AST-Analyzer' | 'Hybrid-Scanner';
+  scannerEngine: string;
   scanDurationMs: number;
   commitHash: string;
   branch: string;
@@ -169,6 +174,8 @@ export interface RiskAssessment {
   recommendations: string[];
   assessedAt: string;
   estimatedCleanupHours: number;
+  recommendation?: 'SAFE_TO_REMOVE' | 'REVIEW_REQUIRED' | 'DO_NOT_REMOVE';
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
 export interface RemovalOperation {
@@ -189,6 +196,10 @@ export interface RemovalOperation {
   completedAt?: string;
   executedBy: string;
   diffSummary?: string;
+  operationType?: 'DRY_RUN' | 'REMOVE' | 'ROLLBACK';
+  safetyBranch?: string;
+  verificationStatus?: 'SUCCESS' | 'FAILED' | 'UNVERIFIED';
+  cleanupStatus?: 'DRY_RUN' | 'APPLIED' | 'NO_CHANGES' | 'UNSUPPORTED' | string;
 }
 
 export interface DiffCheckAnalysis {

@@ -36,9 +36,15 @@ class Repository(TimestampMixin, Base):
     stale_flags: Mapped[int] = mapped_column(Integer, default=0)
     potentially_stale_flags: Mapped[int] = mapped_column(Integer, default=0)
     lines_of_code: Mapped[int] = mapped_column(Integer, default=0)
+    # lifecycle links (nullable; queried explicitly or via Project.relationships)
+    project_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("projects.id", name="fk_repositories_project_id"), nullable=True, index=True)
+    branch: Mapped[str] = mapped_column(String(128), default="", nullable=True)
+    commit_hash: Mapped[str] = mapped_column(String(128), default="", nullable=True)
+    framework: Mapped[str] = mapped_column(String(128), default="", nullable=True)
 
     scans: Mapped[list["Scan"]] = relationship(back_populates="repository", cascade="all, delete-orphan")
     flags: Mapped[list["FeatureFlag"]] = relationship(back_populates="repository", cascade="all, delete-orphan")
+    project: Mapped["Project"] = relationship(back_populates="repositories")
 
 
 class Scan(TimestampMixin, Base):
@@ -52,8 +58,8 @@ class Scan(TimestampMixin, Base):
     stale_flags_detected: Mapped[int] = mapped_column(Integer, default=0)
     scanner_engine: Mapped[str] = mapped_column(String(64), default="FlagShark-engine")
     scan_duration_ms: Mapped[int] = mapped_column(Integer, default=0)
-    commit_hash: Mapped[str] = mapped_column(String(128), default="")
-    branch: Mapped[str] = mapped_column(String(128), default="")
+    commit_hash: Mapped[str] = mapped_column(String(128), default="", nullable=True)
+    branch: Mapped[str] = mapped_column(String(128), default="", nullable=True)
     raw_output: Mapped[str] = mapped_column(Text, default="")  # captured FlagShark stdout (truncated)
     error_message: Mapped[str] = mapped_column(Text, default="")
 
@@ -66,7 +72,7 @@ class ScanFinding(TimestampMixin, Base):
 
     scan_id: Mapped[str] = mapped_column(ForeignKey("scans.id"), index=True)
     flag_key: Mapped[str] = mapped_column(String(256), index=True)
-    file_path: Mapped[str] = mapped_column(String(1024), default="")
+    file_path: Mapped[str] = mapped_column(String(1024), default="", nullable=True)
     line_number: Mapped[int] = mapped_column(Integer, default=0)
     ast_node_type: Mapped[str] = mapped_column(String(128), default="")
     is_stale: Mapped[int] = mapped_column(Integer, default=0)
@@ -82,7 +88,10 @@ class FeatureFlag(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(256), default="")
     key: Mapped[str] = mapped_column(String(256), index=True, unique=False)
     description: Mapped[str] = mapped_column(Text, default="")
-    repository_id: Mapped[str] = mapped_column(ForeignKey("repositories.id"), index=True)
+    # Nullable: project-scoped flags may exist before any repository is linked.
+    repository_id: Mapped[str | None] = mapped_column(
+        ForeignKey("repositories.id", name="fk_feature_flags_repository_id"),
+        nullable=True, index=True)
     repository_name: Mapped[str] = mapped_column(String(256), default="")
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
     risk: Mapped[str] = mapped_column(String(32), default="medium")
@@ -99,8 +108,17 @@ class FeatureFlag(TimestampMixin, Base):
     environment: Mapped[str] = mapped_column(String(32), default="production")
     tags: Mapped[list] = mapped_column(JSON, default=list)
     default_value: Mapped[str] = mapped_column(String(64), default="false")  # stored as string; parsed on read
+    # lifecycle columns (nullable; validated in lifecycle_service)
+    project_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("projects.id", name="fk_feature_flags_project_id"), nullable=True, index=True)
+    lifecycle_state: Mapped[str] = mapped_column(String(32), default="ACTIVE", index=True, nullable=True)
+    last_evaluated_at: Mapped[str] = mapped_column(String(64), default="", nullable=True)
+    rollout_start_date: Mapped[str] = mapped_column(String(64), default="", nullable=True)
+    rollout_end_date: Mapped[str] = mapped_column(String(64), default="", nullable=True)
+    expected_expiry_date: Mapped[str] = mapped_column(String(64), default="", nullable=True)
+    current_value: Mapped[str] = mapped_column(String(64), default="false", nullable=True)
 
     repository: Mapped["Repository"] = relationship(back_populates="flags")
+    project: Mapped["Project"] = relationship(back_populates="flags")
 
 
 class EvidenceRecord(TimestampMixin, Base):
@@ -118,6 +136,11 @@ class EvidenceRecord(TimestampMixin, Base):
     severity: Mapped[str] = mapped_column(String(32), default="")
     value: Mapped[str] = mapped_column(Text, default="")
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    # lifecycle links
+    project_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("projects.id", name="fk_evidence_project_id"), nullable=True, index=True)
+    analysis_run_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("analysis_runs.id", name="fk_evidence_run_id"), nullable=True, index=True)
+    file_path: Mapped[str] = mapped_column(String(1024), default="", nullable=True)
+    line_reference: Mapped[str] = mapped_column(String(64), default="", nullable=True)
 
 
 class CodeReference(TimestampMixin, Base):
@@ -127,7 +150,7 @@ class CodeReference(TimestampMixin, Base):
     flag_name: Mapped[str] = mapped_column(String(256), default="")
     repository_id: Mapped[str] = mapped_column(String(64), default="")
     repository_name: Mapped[str] = mapped_column(String(256), default="")
-    file_path: Mapped[str] = mapped_column(String(1024), default="")
+    file_path: Mapped[str] = mapped_column(String(1024), default="", nullable=True)
     line_number: Mapped[int] = mapped_column(Integer, default=0)
     column_number: Mapped[int] = mapped_column(Integer, default=0)
     code_snippet: Mapped[str] = mapped_column(Text, default="")
@@ -140,7 +163,7 @@ class CodePath(TimestampMixin, Base):
     __tablename__ = "code_paths"
 
     flag_id: Mapped[str] = mapped_column(String(64), index=True)
-    file_path: Mapped[str] = mapped_column(String(1024), default="")
+    file_path: Mapped[str] = mapped_column(String(1024), default="", nullable=True)
     branch_condition: Mapped[str] = mapped_column(String(512), default="")
     reachable_state: Mapped[int] = mapped_column(Integer, default=1)
     dead_code_lines: Mapped[list] = mapped_column(JSON, default=list)
@@ -151,6 +174,14 @@ class CodePath(TimestampMixin, Base):
     false_branch: Mapped[str] = mapped_column(Text, default="")
     functions_involved: Mapped[list] = mapped_column(JSON, default=list)
     coverage_status: Mapped[str] = mapped_column(String(32), default="unavailable")
+    # lifecycle links
+    analysis_run_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("analysis_runs.id", name="fk_code_paths_run_id"), nullable=True, index=True)
+    repository_id: Mapped[str] = mapped_column(String(64), default="", index=True)
+    function_name: Mapped[str] = mapped_column(String(256), default="", nullable=True)
+    branch_type: Mapped[str] = mapped_column(String(64), default="", nullable=True)
+    is_tested: Mapped[int] = mapped_column(Integer, default=0, nullable=True)
+    is_active: Mapped[int] = mapped_column(Integer, default=1, nullable=True)
+    detected_by: Mapped[str] = mapped_column(String(64), default="", nullable=True)
 
 
 class RiskAssessment(TimestampMixin, Base):
@@ -164,6 +195,15 @@ class RiskAssessment(TimestampMixin, Base):
     assessed_at: Mapped[str] = mapped_column(String(64), default="")
     estimated_cleanup_hours: Mapped[int] = mapped_column(Integer, default=0)
     score: Mapped[int] = mapped_column(Integer, default=0)  # numeric 0-100 mirror of blast radius
+    # lifecycle columns
+    analysis_run_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("analysis_runs.id", name="fk_risk_run_id"), nullable=True, index=True)
+    risk_level: Mapped[str] = mapped_column(String(16), default="MEDIUM", index=True, nullable=True)
+    affected_code_paths: Mapped[list] = mapped_column(JSON, default=list, nullable=True)
+    affected_environments: Mapped[list] = mapped_column(JSON, default=list, nullable=True)
+    dependency_count: Mapped[int] = mapped_column(Integer, default=0, nullable=True)
+    test_coverage: Mapped[str] = mapped_column(String(64), default="unavailable", nullable=True)
+    rollback_available: Mapped[int] = mapped_column(Integer, default=0, nullable=True)
+    recommendation: Mapped[str] = mapped_column(String(32), default="REVIEW_REQUIRED", nullable=True)
 
     factors: Mapped[list["RiskFactor"]] = relationship(back_populates="assessment", cascade="all, delete-orphan")
 
@@ -204,6 +244,15 @@ class RemovalOperation(TimestampMixin, Base):
     stdout_log: Mapped[str] = mapped_column(Text, default="")
     stderr_log: Mapped[str] = mapped_column(Text, default="")
     verification_status: Mapped[str] = mapped_column(String(32), default="UNVERIFIED")
+    # Phase 3: verified Piranha adapter outcome (DRY_RUN|APPLIED|NO_CHANGES|UNSUPPORTED)
+    cleanup_status: Mapped[str | None] = mapped_column(String(32), default=None, nullable=True, index=True)
+    # lifecycle columns
+    analysis_run_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("analysis_runs.id", name="fk_removal_run_id"), nullable=True, index=True)
+    operation_type: Mapped[str] = mapped_column(String(16), default="REMOVE", index=True, nullable=True)
+    commit_hash_before: Mapped[str] = mapped_column(String(128), default="", nullable=True)
+    commit_hash_after: Mapped[str] = mapped_column(String(128), default="", nullable=True)
+    backup_location: Mapped[str] = mapped_column(String(1024), default="", nullable=True)
+    started_at: Mapped[str] = mapped_column(String(64), default="", nullable=True)
 
 
 class TestRun(TimestampMixin, Base):

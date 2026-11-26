@@ -1,0 +1,90 @@
+diff -u -r before/case_expr.py after/case_expr.py
+--- before/case_expr.py	2026-10-25 19:41:55.000000000 +0530
++++ after/case_expr.py	2026-10-25 21:12:58.141568063 +0530
+@@ -1,7 +1,7 @@
+-from flags import FEATURE_NEW_UI
++
+ 
+ 
+ def badge(user):
+-    if FEATURE_NEW_UI and user.premium:
++    if user.premium:
+         return "gold"
+     return "basic"
+diff -u -r before/case_nested.py after/case_nested.py
+--- before/case_nested.py	2026-10-25 19:41:55.000000000 +0530
++++ after/case_nested.py	2026-10-25 21:12:58.141568063 +0530
+@@ -1,9 +1,8 @@
+-from flags import FEATURE_NEW_UI
++
+ 
+ 
+ def nested(user):
+-    if FEATURE_NEW_UI:
+-        if user.premium:
++    if user.premium:
+             return "a"
+         return "b"
+     return "c"
+diff -u -r before/case_true.py after/case_true.py
+--- before/case_true.py	2026-10-25 19:41:55.000000000 +0530
++++ after/case_true.py	2026-10-25 21:12:58.141568063 +0530
+@@ -1,8 +1,5 @@
+-from flags import FEATURE_NEW_UI
++
+ 
+ 
+ def render(user):
+-    if FEATURE_NEW_UI:
+-        return new_ui(user)
+-    else:
+-        return old_ui(user)
++    return new_ui(user)
+diff -u -r before/flags.py after/flags.py
+--- before/flags.py	2026-10-25 19:41:55.000000000 +0530
++++ after/flags.py	2026-10-25 21:12:58.141568063 +0530
+@@ -1,3 +1,2 @@
+ """Flag definitions - assignments must survive cleanup."""
+-FEATURE_NEW_UI = True
+ FEATURE_OLD_SEARCH = False
+diff -u -r before/multi_a.py after/multi_a.py
+--- before/multi_a.py	2026-10-25 19:41:55.000000000 +0530
++++ after/multi_a.py	2026-10-25 21:12:58.141568063 +0530
+@@ -1,7 +1,6 @@
+-from flags import FEATURE_NEW_UI
++
+ 
+ 
+ def part_a():
+-    if FEATURE_NEW_UI:
+-        return 1
++    return 1
+     return 0
+diff -u -r before/multi_b.py after/multi_b.py
+--- before/multi_b.py	2026-10-25 19:41:55.000000000 +0530
++++ after/multi_b.py	2026-10-25 21:12:58.141568063 +0530
+@@ -1,7 +1,6 @@
+-from flags import FEATURE_NEW_UI
++
+ 
+ 
+ def part_b():
+-    if FEATURE_NEW_UI:
+-        return 2
++    return 2
+     return 0
+diff -u -r before/two_flags.py after/two_flags.py
+--- before/two_flags.py	2026-10-25 19:41:55.000000000 +0530
++++ after/two_flags.py	2026-10-25 21:12:58.141568063 +0530
+@@ -2,10 +2,7 @@
+ 
+ 
+ def both(user):
+-    if FEATURE_NEW_UI:
+-        a = "new"
+-    else:
+-        a = "old"
++    a = "new"
+     if FEATURE_OLD_SEARCH:
+         b = "legacy"
+     else:

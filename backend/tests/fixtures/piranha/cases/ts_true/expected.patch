@@ -1,0 +1,61 @@
+diff -u -r before/case_expr.ts after/case_expr.ts
+--- before/case_expr.ts	2026-10-25 19:41:55.000000000 +0530
++++ after/case_expr.ts	2026-10-25 21:12:58.164927959 +0530
+@@ -1,7 +1,7 @@
+-import { FEATURE_NEW_UI } from "./flags";
++
+ 
+ export function badge(premium: boolean): string {
+-  if (FEATURE_NEW_UI && premium) {
++  if (premium) {
+     return "gold";
+   }
+   return "basic";
+diff -u -r before/case_nested.ts after/case_nested.ts
+--- before/case_nested.ts	2026-10-25 19:41:55.000000000 +0530
++++ after/case_nested.ts	2026-10-25 21:12:58.164927959 +0530
+@@ -1,7 +1,7 @@
+-import { FEATURE_NEW_UI } from "./flags";
++
+ 
+ export function nested(premium: boolean): string {
+-  if (FEATURE_NEW_UI) {
++  {
+     if (premium) {
+       return "a";
+     }
+diff -u -r before/case_true.ts after/case_true.ts
+--- before/case_true.ts	2026-10-25 19:41:55.000000000 +0530
++++ after/case_true.ts	2026-10-25 21:12:58.164927959 +0530
+@@ -1,9 +1,7 @@
+-import { FEATURE_NEW_UI } from "./flags";
++
+ 
+ export function render(user: string): string {
+-  if (FEATURE_NEW_UI) {
++  {
+     return newUi(user);
+-  } else {
+-    return oldUi(user);
+   }
+ }
+diff -u -r before/flags.ts after/flags.ts
+--- before/flags.ts	2026-10-25 19:41:55.000000000 +0530
++++ after/flags.ts	2026-10-25 21:12:58.164927959 +0530
+@@ -1,2 +1,2 @@
+-export const FEATURE_NEW_UI = true;
++
+ export const FEATURE_OLD_SEARCH = false;
+diff -u -r before/multi_a.ts after/multi_a.ts
+--- before/multi_a.ts	2026-10-25 19:41:55.000000000 +0530
++++ after/multi_a.ts	2026-10-25 21:12:58.164927959 +0530
+@@ -1,7 +1,7 @@
+-import { FEATURE_NEW_UI } from "./flags";
++
+ 
+ export function partA(): number {
+-  if (FEATURE_NEW_UI) {
++  {
+     return 1;
+   }
+   return 0;

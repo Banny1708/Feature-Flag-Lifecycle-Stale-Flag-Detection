@@ -17,9 +17,14 @@ settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 target_metadata = Base.metadata
 
+# SQLite cannot ALTER constraints; batch mode transparently uses copy-and-move.
+# On PostgreSQL this flag is ignored.
+BATCH_MODE = settings.DATABASE_URL.startswith("sqlite")
+
 
 def run_migrations_offline() -> None:
-    context.configure(url=settings.DATABASE_URL, target_metadata=target_metadata, literal_binds=True)
+    context.configure(url=settings.DATABASE_URL, target_metadata=target_metadata, literal_binds=True,
+                      render_as_batch=BATCH_MODE)
     with context.begin_transaction():
         context.run_migrations()
 
@@ -27,7 +32,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     connectable = engine_from_config({"sqlalchemy.url": settings.DATABASE_URL}, prefix="sqlalchemy.", poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata,
+                          render_as_batch=BATCH_MODE)
         with context.begin_transaction():
             context.run_migrations()
 

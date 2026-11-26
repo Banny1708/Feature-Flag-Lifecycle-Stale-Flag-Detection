@@ -1,0 +1,250 @@
+[[rules]]
+name = "flag_to_literal"
+query = """
+(
+  (identifier) @flag_id
+  (#eq? @flag_id "@flag_name")
+)
+"""
+replace_node = "flag_id"
+replace = "@treated"
+holes = ["flag_name", "treated"]
+groups = ["flag_seed"]
+is_seed_rule = true
+
+[[rules.filters]]
+enclosing_node = "(if_statement) @stmt"
+not_enclosing_node = "(member_expression) @m"
+
+[[rules]]
+name = "simplify_if_true"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (true))
+    consequence: (statement_block) @then
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@then"
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "simplify_if_false_else"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (false))
+    consequence: (statement_block)
+    alternative: (else_clause (statement_block) @else)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@else"
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "true_and_x"
+query = """((binary_expression left: (true) operator: "&&" right: (_) @rhs) @op)"""
+replace_node = "op"
+replace = "@rhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_and_true"
+query = """((binary_expression left: (_) @lhs operator: "&&" right: (true)) @op)"""
+replace_node = "op"
+replace = "@lhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "false_and_x"
+query = """((binary_expression left: (false) operator: "&&" right: (_)) @op)"""
+replace_node = "op"
+replace = "false"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_and_false"
+query = """((binary_expression left: (_) operator: "&&" right: (false)) @op)"""
+replace_node = "op"
+replace = "false"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "false_or_x"
+query = """((binary_expression left: (false) operator: "||" right: (_) @rhs) @op)"""
+replace_node = "op"
+replace = "@rhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_or_false"
+query = """((binary_expression left: (_) @lhs operator: "||" right: (false)) @op)"""
+replace_node = "op"
+replace = "@lhs"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "true_or_x"
+query = """((binary_expression left: (true) operator: "||" right: (_)) @op)"""
+replace_node = "op"
+replace = "true"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "x_or_true"
+query = """((binary_expression left: (_) operator: "||" right: (true)) @op)"""
+replace_node = "op"
+replace = "true"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "not_true"
+query = """((unary_expression operator: "!" argument: (true)) @op)"""
+replace_node = "op"
+replace = "false"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "not_false"
+query = """((unary_expression operator: "!" argument: (false)) @op)"""
+replace_node = "op"
+replace = "true"
+groups = ["ts_bool_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "delete_ts_definition"
+query = """
+(
+  (export_statement) @stmt
+  (#match? @stmt "^export\\\\s+const\\\\s+@flag_name\\\\s*=")
+)
+"""
+replace_node = "stmt"
+replace = ""
+holes = ["flag_name"]
+groups = ["ts_import_cleanup"]
+is_seed_rule = true
+
+[[rules]]
+name = "delete_single_ts_import"
+query = """
+(
+  (import_statement) @stmt
+  (#match? @stmt "^import\\\\s*\\\\{\\\\s*@flag_name\\\\s*\\\\}\\\\s*from")
+)
+"""
+replace_node = "stmt"
+replace = ""
+holes = ["flag_name"]
+groups = ["ts_import_cleanup"]
+is_seed_rule = true
+
+# LaunchDarkly SDK call cleanup (verified): `X.variation|boolVariation("FLAG",
+# ctx, true|false-literal)` in an `if` condition -> @treated literal, then the
+# shared bool/if cleanup chain applies. Safety gates (all verified):
+# - enclosing `if` only;
+# - default arg must be a boolean literal (proves boolean intent; object/string
+#   defaults like rate-limiter configs are left alone -> NO_CHANGES);
+# - stringVariation/numberVariation/jsonVariation and *Detail variants are
+#   intentionally NOT matched (non-boolean return would be corrupted).
+[[rules]]
+name = "ld_variation_to_literal"
+query = """
+(
+  (call_expression
+    function: (member_expression
+      property: (property_identifier) @method
+      (#match? @method "^(variation|boolVariation)$"))
+    arguments: (arguments
+      . (string
+        (string_fragment) @key
+        (#eq? @key "@flag_name"))
+      (_) @ctx
+      . [(true) (false)] @default)) @call
+)
+"""
+replace_node = "call"
+replace = "@treated"
+holes = ["flag_name", "treated"]
+groups = ["flag_seed"]
+is_seed_rule = true
+
+[[rules.filters]]
+enclosing_node = "(if_statement) @stmt"
+
+[[rules]]
+name = "simplify_if_await_true"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (await_expression (true)))
+    consequence: (statement_block) @then
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@then"
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "simplify_if_await_false_else"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (await_expression (false)))
+    consequence: (statement_block)
+    alternative: (else_clause (statement_block) @else)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = "@else"
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "simplify_if_await_false_no_else"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (await_expression (false)))
+    consequence: (statement_block)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = ""
+groups = ["ts_if_cleanup"]
+is_seed_rule = false
+
+[[rules]]
+name = "simplify_if_false_no_else"
+query = """
+(
+  (if_statement
+    condition: (parenthesized_expression (false))
+    consequence: (statement_block)
+  ) @stmt
+)
+"""
+replace_node = "stmt"
+replace = ""
+groups = ["ts_if_cleanup"]
+is_seed_rule = false

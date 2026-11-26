@@ -1,0 +1,4 @@
+[[edges]]
+scope = "ParentIterative"
+from = "flag_seed"
+to = ["ts_bool_cleanup", "ts_if_cleanup", "ts_import_cleanup"]

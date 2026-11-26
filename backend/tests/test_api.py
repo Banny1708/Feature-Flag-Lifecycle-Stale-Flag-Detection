@@ -12,7 +12,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{tmp.name}"
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services import flagshark_service, piranha_service  # noqa: E402
-from app.services.seed_service import seed_if_empty  # noqa: E402
+from tests.fixtures import seed_if_empty  # noqa: E402  (test-only fixtures)
 
 init_db()
 db = SessionLocal()

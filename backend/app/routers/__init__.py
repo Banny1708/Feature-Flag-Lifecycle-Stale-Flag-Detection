@@ -1,1 +1,12 @@
-from . import analyze, flags, health, removals, reports, repositories, scans  # noqa: F401
+from . import (  # noqa: F401
+    analysis_runs,
+    analyze,
+    flags,
+    health,
+    projects,
+    removals,
+    reports,
+    repositories,
+    scans,
+    settings,
+)

@@ -1,0 +1,100 @@
+{
+  "version": "2.8.0",
+  "totalFlags": 4,
+  "staleFlags": 3,
+  "errorCount": 0,
+  "parseErrorCount": 0,
+  "excludedPermanent": [],
+  "permanentByPlatform": {},
+  "healthScore": 25,
+  "detectedProviders": [
+    "ldclient",
+    "launchdarkly-node-server-sdk"
+  ],
+  "languages": {
+    "python": 2,
+    "typescript": 4
+  },
+  "flags": [
+    {
+      "name": "PYTHON_SEARCH_V3",
+      "file": "/repo/app.py",
+      "line": 6,
+      "language": "python",
+      "provider": "ldclient",
+      "stale": true,
+      "severity": "warning",
+      "confidence": "high",
+      "signals": [
+        {
+          "type": "age",
+          "severity": "warning",
+          "description": "Flag reference last modified 1 year ago (threshold: 30 days)"
+        },
+        {
+          "type": "low-usage",
+          "severity": "warning",
+          "description": "Flag \"PYTHON_SEARCH_V3\" only appears in 1 file — may have been fully rolled out"
+        }
+      ],
+      "age": "1 year ago"
+    },
+    {
+      "name": "TEST_ONLY_FLAG",
+      "file": "/repo/tests/test_flags.py",
+      "line": 4,
+      "language": "python",
+      "provider": "ldclient",
+      "stale": true,
+      "severity": "warning",
+      "confidence": "high",
+      "signals": [
+        {
+          "type": "age",
+          "severity": "warning",
+          "description": "Flag reference last modified 1 year ago (threshold: 30 days)"
+        },
+        {
+          "type": "low-usage",
+          "severity": "warning",
+          "description": "Flag \"TEST_ONLY_FLAG\" only appears in 1 file — may have been fully rolled out"
+        },
+        {
+          "type": "test-only-references",
+          "severity": "warning",
+          "description": "Flag \"TEST_ONLY_FLAG\" is referenced only in test/spec files — likely a forgotten test fixture or never-deployed prototype"
+        }
+      ],
+      "age": "1 year ago"
+    },
+    {
+      "name": "LEGACY_CHECKOUT_V1",
+      "file": "/repo/src/stale-flag.ts",
+      "line": 5,
+      "language": "typescript",
+      "provider": "launchdarkly-node-server-sdk",
+      "stale": true,
+      "severity": "warning",
+      "confidence": "high",
+      "signals": [
+        {
+          "type": "age",
+          "severity": "warning",
+          "description": "Flag reference last modified 1 year ago (threshold: 30 days)"
+        },
+        {
+          "type": "low-usage",
+          "severity": "warning",
+          "description": "Flag \"LEGACY_CHECKOUT_V1\" only appears in 1 file — may have been fully rolled out"
+        }
+      ],
+      "age": "1 year ago"
+    }
+  ],
+  "scanDuration": 183,
+  "links": {
+    "dashboard": "https://flagshark.com",
+    "cli": "https://github.com/FlagShark/flagshark",
+    "npm": "https://www.npmjs.com/package/flagshark"
+  }
+}

@@ -1,31 +1,31 @@
 import { Repository, ScanResult } from '@/types';
-import { mockRepositories } from '@/data/mockRepositories';
-import { mockScanResults } from '@/data/mockScanResults';
-import { apiGet, apiPost, backendFirst, simulateFetch } from './apiClient';
+import { apiGet, apiPost } from './apiClient';
+
+export interface ConnectRepositoryBody {
+  name: string;
+  url?: string;
+  local_path?: string;
+  default_branch?: string;
+  language?: string;
+  owner?: string;
+}
 
 export const repositoryService = {
   async getRepositories(): Promise<Repository[]> {
-    return backendFirst(
-      () => apiGet<Repository[]>('/api/repositories'),
-      () => simulateFetch(mockRepositories)
-    );
+    return apiGet<Repository[]>('/api/repositories');
   },
 
-  async getRepositoryById(id: string): Promise<Repository | undefined> {
-    return backendFirst(
-      () => apiGet<Repository>(`/api/repositories/${encodeURIComponent(id)}`),
-      async () => {
-        const repos = await simulateFetch(mockRepositories);
-        return repos.find((r) => r.id === id);
-      }
-    ).catch(() => undefined);
+  async getRepositoryById(id: string): Promise<Repository> {
+    return apiGet<Repository>(`/api/repositories/${encodeURIComponent(id)}`);
   },
 
   async getScanResults(): Promise<ScanResult[]> {
-    return backendFirst(
-      () => apiGet<ScanResult[]>('/api/scans'),
-      () => simulateFetch(mockScanResults)
-    );
+    return apiGet<ScanResult[]>('/api/scans');
+  },
+
+  /** Register a repository for monitoring. Throws with the backend message on failure. */
+  async connectRepository(body: ConnectRepositoryBody): Promise<Repository> {
+    return apiPost<Repository>('/api/repositories', body);
   },
 
   /** Trigger a real backend detection scan. Throws with the backend message on failure. */

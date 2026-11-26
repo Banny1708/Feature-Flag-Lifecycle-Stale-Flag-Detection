@@ -1,0 +1,2 @@
+def broken(:
+    if True

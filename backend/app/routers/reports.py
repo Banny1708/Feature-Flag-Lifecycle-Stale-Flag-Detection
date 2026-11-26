@@ -24,7 +24,7 @@ def _summarize(db: Session, repository_id: str | None) -> dict:
         removals = removals.filter_by(repository_id=repository_id)
     removals = removals.all()
     stale = sum(1 for f in flags if f.status in ("stale", "potentially-stale"))
-    done = sum(1 for r in removals if r.status == "merged")
+    done = sum(1 for r in removals if r.status in ("merged", "SUCCESS"))
     lines = sum(r.lines_removed for r in removals)
     return {"total_scanned_flags": len(flags) or sum(s.total_flags_detected for s in scans),
             "stale_flags_identified": stale,
